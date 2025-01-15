@@ -1,6 +1,6 @@
 import time
 import random
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError,Page
 import json
 import os
 
@@ -37,7 +37,7 @@ def save_progress(page, item_index=0):
     with open(progress_file, 'w', encoding='utf-8') as f:
         json.dump(progress, f, ensure_ascii=False, indent=4)
 
-def scroll_down(page, scroll_amount=500, wait_time=1):
+def scroll_down(page:Page, scroll_amount=400, wait_time=1):
     """
     慢速滚动页面，每次滚动指定的距离。
     
@@ -45,11 +45,40 @@ def scroll_down(page, scroll_amount=500, wait_time=1):
     :param scroll_amount: 每次滚动的距离（像素）。
     :param wait_time: 每次滚动后等待的时间（秒）。
     """
-    last_height = page.evaluate("document.body.scrollHeight")
+    results=[]
 
+
+    last_height = page.evaluate("document.body.scrollHeight")
+    items = page.query_selector_all('ul.unit-content-main')  # 修改选择器以匹配实际HTML结构
+
+    for index, item in enumerate(items, start=1):
+        title_element = item.query_selector('b.trans-title')
+        print(title_element.text_content().strip())
+        item.query_selector('div.js-fast-video-custom-region').hover()
+        item.wait_for_selector('video.h5-fast-video',timeout=20000)
+        # time.sleep(random.uniform(0.1, 0.5))
+        video_element = item.query_selector('video.h5-fast-video')
+        print(video_element.get_attribute('src'))
+        if index%5==0:
+            current_scroll_y = page.evaluate("window.scrollY")
+            new_scroll_y = current_scroll_y + scroll_amount
+            # Scroll down by the specified amount
+            page.evaluate(f"window.scrollTo(0, {new_scroll_y});")
+            # Wait to load page content after each scroll
+            # time.sleep(wait_time)  # 调整为每次滚动后的短暂停顿
+
+        if title_element and video_element:
+            title = title_element.text_content().strip()
+            download_link = video_element.get_attribute('src')
+
+            print(f", Item {index} Title: {title}")
+            print(f", Item {index} Download Link: {download_link}")
+
+            # if download_func:
+            #     download_func(title, download_link)
     while True:
-        for _ in range(10):  # 每次循环滚动5次
-            wait_for_all_videos_to_load(page)
+        for _ in range(7):  # 每次循环滚动5次
+            # wait_for_all_videos_to_load(page)
             current_scroll_y = page.evaluate("window.scrollY")
             new_scroll_y = current_scroll_y + scroll_amount
             
@@ -147,22 +176,24 @@ def download_pages(page_count, download_func=None):
                 
 
                 # 继续处理页面内容...
-                items = page.query_selector_all('ul.unit-content-main')  # 修改选择器以匹配实际HTML结构
-                print(f"Page {i + 1}, Found {len(items)} items")
+                # items = page.query_selector_all('ul.unit-content-main')  # 修改选择器以匹配实际HTML结构
+                # print(f"Page {i + 1}, Found {len(items)} items")
 
-                for index, item in enumerate(items, start=1):
-                    title_element = item.query_selector('b.trans-title')
-                    video_element = item.query_selector('video.h5-fast-video')
+                # for index, item in enumerate(items, start=1):
+                #     title_element = item.query_selector('b.trans-title')
+                #     page.query_selector('div.js-fast-video-custom-region').hover()
+                #     time.sleep
+                #     video_element = item.query_selector('video.h5-fast-video')
 
-                    if title_element and video_element:
-                        title = title_element.text_content().strip()
-                        download_link = video_element.get_attribute('src')
+                #     if title_element and video_element:
+                #         title = title_element.text_content().strip()
+                #         download_link = video_element.get_attribute('src')
 
-                        print(f"Page {i + 1}, Item {index} Title: {title}")
-                        print(f"Page {i + 1}, Item {index} Download Link: {download_link}")
+                #         print(f"Page {i + 1}, Item {index} Title: {title}")
+                #         print(f"Page {i + 1}, Item {index} Download Link: {download_link}")
 
-                        if download_func:
-                            download_func(title, download_link)
+                #         if download_func:
+                #             download_func(title, download_link)
 
             except PlaywrightTimeoutError as e:
                 print(f"Timeout error on page {i + 1}: {e}")
